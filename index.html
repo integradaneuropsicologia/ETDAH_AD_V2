@@ -1840,18 +1840,32 @@ const respostasLegiveis = buildResultsPerguntasRespostas(FORM_QUESTIONS, rawPayl
 // cálculo de pontuação
 const scoring = buildScoringResult(FORM_QUESTIONS, rawPayload, INDICATORS_CONFIG);
 const resultsPayload = respostasLegiveis;
-const resultsMetaPayload = Object.fromEntries(
-  Object.entries(scoring.indicators).flatMap(([key, indicator]) => {
-    const cfg = INDICATORS_CONFIG[key];
-    const entries = [[key, indicator.sum]];
-    if (Array.isArray(cfg?.cutoffs) && cfg.cutoffs.length) {
-      const rule = interpretByCutoffs(indicator.sum, cfg.cutoffs);
-      if (rule?.text) entries.push([`${key}_interpretacao`, rule.text]);
-    }
+const resultsMetaPayload = [];
+let metaOrder = 1;
 
-    return entries;
-  })
-);
+Object.entries(INDICATORS_CONFIG).forEach(([key, cfg]) => {
+  const indicator = scoring.indicators[key];
+  if (!indicator) return;
+
+  resultsMetaPayload.push({
+    order: metaOrder++,
+    key,
+    label: cfg.label || key,
+    value: indicator.sum
+  });
+
+  if (Array.isArray(cfg?.cutoffs) && cfg.cutoffs.length) {
+    const rule = interpretByCutoffs(indicator.sum, cfg.cutoffs);
+    if (rule?.text) {
+      resultsMetaPayload.push({
+        order: metaOrder++,
+        key: `${key}_interpretacao`,
+        label: `${cfg.label || key} - interpretação`,
+        value: rule.text
+      });
+    }
+  }
+});
 
     // 1) Revalida no patients (não confiar só na validação inicial)
     const { data: patient, error: patientError } = await supabaseClient
